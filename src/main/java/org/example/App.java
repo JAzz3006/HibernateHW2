@@ -48,6 +48,7 @@ public class App
                 int stdId = session.createQuery(studentQuery).getSingleResult().getId();
 
                 Transaction tx = session.beginTransaction();
+
                 LinkedPurchaseList lpl = new LinkedPurchaseList();
                 lpl.setId(new LinkedPLKey(stdId,crsId));
 
