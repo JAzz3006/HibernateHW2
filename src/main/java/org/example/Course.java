@@ -48,5 +48,4 @@ public class Course {
 
     @OneToMany(mappedBy = "course")
     private Set<LinkedPurchaseList> coursePurchases = new HashSet<>();
-
 }
