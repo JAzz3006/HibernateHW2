@@ -23,24 +23,9 @@ public class Main {
             try(SessionFactory sessionFactory = metadata.getSessionFactoryBuilder().build();
                 Session session = sessionFactory.openSession()) {
 
-                List<Course> courses = session.createNativeQuery("select * from courses", Course.class).getResultList();
-                List<Teacher> teachers = session.createNativeQuery("select * from teachers", Teacher.class).getResultList();
-                List<String> listWithTeachers = new ArrayList<>();
-                for (Course course : courses){
-                    for (Teacher teacher : teachers){
-                        if (course.getTeacher().getId() == teacher.getId()){
-                            String elementOfList = String.join(" - ",
-                                    String.valueOf(course.getId()),
-                                    course.getName(),
-                                    teacher.getName());
-                            listWithTeachers.add(elementOfList);
-                            break;
-                        }
-                    }
-                }
-                listWithTeachers.forEach(System.out::println);
 
 
+//                List<Teacher> teachers = session.createNativeQuery("select * from teachers", Teacher.class).getResultList();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -50,5 +35,12 @@ public class Main {
     }
     public static void testConnection(){
 
+    }
+
+    public static List<String> teacherNameInfo (Session s){
+        List<Course> courses = s.createNativeQuery("select * from courses", Course.class).getResultList();
+        return courses.stream()
+                .map(c -> String.join(" - ", String.valueOf(c.getId()), c.getName(), c.getTeacher().getName()))
+                .collect(Collectors.toList());
     }
 }

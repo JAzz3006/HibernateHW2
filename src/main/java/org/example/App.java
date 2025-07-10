@@ -4,51 +4,120 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
 import org.hibernate.Session;
-import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.hibernate.boot.Metadata;
-import org.hibernate.boot.MetadataSources;
-import org.hibernate.boot.registry.StandardServiceRegistry;
-import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 public class App{
     public static void main( String[] args ){
-        SessionFactory sessionFactory = null;
-        Session session = null;
+       Session session = null;
         try {
-            StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-                    .configure("hibernate.cfg.xml")
-                    .build();
-            Metadata metadata = new MetadataSources(registry).getMetadataBuilder().build();
-            sessionFactory = metadata.getSessionFactoryBuilder().build();
-            session = sessionFactory.openSession();
-        } catch (Exception e) {
-            System.out.println("Возникла ошибка при инициализации Hibernate: " + e.getClass().getName() +
-                    "\nСообщение: " + e.getMessage() + "\nВозможная причина:");
-            if (e.getMessage().contains("Unknown database")){
-                System.out.println("Проверьте наименование базы данных в src/main/resources/hibernate.cfg.xml");
-            }else if (e.getMessage().contains("Communications link failure")) {
-                System.out.println("SQL-сервер не активен или Неверно указан порт в src/main/resources/hibernate.cfg.xml");
-            }else if (e.getMessage().contains("Access denied")) {
-                System.out.println("Проверьте имя пользователя и/или пароль в src/main/resources/hibernate.cfg.xml");
-            }else if (e.getMessage().contains("Public Key Retrieval is not allowed")) {
-                System.out.println("Проверьте имя пользователя и/или пароль в src/main/resources/hibernate.cfg.xml");
-            } else if (e.getMessage().contains("No suitable driver found")) {
-                System.out.println("Проверьте подключение sql-драйвера в pom.xml\nПроверьте корректность url " +
-                        "в src/main/resources/hibernate.cfg.xml");
-            }else if (e.getMessage().contains("does not belong to the same persistence unit")) {
-                System.out.println("Проверьте мапинг классов в src/main/resources/hibernate.cfg.xml");
-            }else if (e.getMessage().contains("which is not an '@Entity' type")) {
-                System.out.println("Убедитесь в наличии аннотации @Entity у всех классов, соответствующих таблицам в БД");
+           session = HibernateUtil.getSession();
+            if (session == null){
+                System.out.println("Сессия не инициализирована. Выполнение программы остановлено");
+                return;
             }
+
+            editTeacher(session);
+            getTeachers(session).forEach(System.out::println);
+
+       } catch (Exception e) {
+            System.out.println("Не удалось открыть сессию: " + e.getClass().getName() +
+                    "\nСообщение: " + e.getMessage());
+       }finally {
+            if (session != null) session.close();
+            HibernateUtil.shutDown();
         }
 
-        if (session == null){
-            System.out.println("Сессия не инициализирована. Выполнение программы остановлено");
-            return;
-        }
+    }
 
+    public static void maxEarnings(Session session){
+        List<LinkedPurchaseList> purchases =
+                session.createQuery("SELECT * FROM LinkedPurchaseList", LinkedPurchaseList.class)
+                        .getResultList();
+        Map<Integer, List<LinkedPurchaseList>> groupedMap = purchases.stream()
+                .collect(Collectors.groupingBy(
+                        lpl -> lpl.getCourse().getId())//,
+                        //Collectors.flatMapping((lpl -> {
+                          //  Map.Entry<>
+                        //} )
+                );
+
+
+    }
+
+    public static void addTeacher(Session session){
+        Transaction transaction = null;
+        try{
+           transaction = session.beginTransaction();
+           if (transaction == null){
+               System.out.println("Не удалось создать транзакцию");
+               return;
+           }
+           session.createNativeQuery("INSERT INTO teachers (age, salary, name) VALUES (25, 150000, 'John Doe')")
+                   .executeUpdate();
+           transaction.commit();
+
+        } catch (Exception e) {
+            transaction.rollback();
+            System.out.println("Что-то пошло не так :(\n" + e.getMessage());
+        }
+    }
+
+    public static void editTeacher(Session session){
+        Transaction transaction = null;
+        String userInput = "";
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Введите имя учителя");
+        try {
+            while (true){
+                userInput = scanner.nextLine();
+                if (!userInput.isEmpty()){
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Что-то пошло не так (1) :(\n" + e.getMessage());
+        }
+        try{
+            transaction = session.beginTransaction();
+            if (transaction == null){
+                System.out.println("Транзакция не создана");
+                return;
+            }
+            session.createQuery("UPDATE Teacher t SET name = :name WHERE id = :id")
+                    .setParameter("name", userInput)
+                    .setParameter("id", 51)
+                    .executeUpdate();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction != null){
+                transaction.rollback();
+            }
+            System.out.println("Что-то пошло не так (2) :(\n" + e.getMessage());
+        }
+    }
+
+    public static List<String> getTeachers(Session session){
+        List<Teacher> teachers = session.createNativeQuery("SELECT * FROM teachers",Teacher.class).getResultList();
+        return teachers.stream()
+                .map(t -> String.join(" - ", String.valueOf(t.getId()), t.getName()))
+                .collect(Collectors.toList());
+    }
+
+    public static void businessLogic1 (Session session){
+        List<LinkedPurchaseList> linkedPurchases = session.createNativeQuery("select * from linked_purchase_list order by student_id", LinkedPurchaseList.class)
+                .getResultList();
+        List<String> purchInfo = linkedPurchases.stream().map(lpl -> String.join(" - ",
+                String.valueOf(lpl.getCourse().getId()), lpl.getCourse().getName(), lpl.getStudent().getName()))
+                .collect(Collectors.toList());
+        purchInfo.forEach(System.out::println);
+    }
+
+    public static void businessLogic (Session session){
         Transaction tx = session.beginTransaction();
 
         try{
@@ -61,7 +130,7 @@ public class App{
             if (purchases.isEmpty()){
                 System.out.println("БД не заполнена, загрузите данные. Выполнение остановлено");
                 session.close();
-                sessionFactory.close();
+                HibernateUtil.shutDown();
                 return;
             }
             for (PurchaseList purch : purchases) {
@@ -104,9 +173,7 @@ public class App{
             System.out.println("Возникла ошибка при выполнении кода: " + e.getClass().getName() +
                     "\nСообщение: " + e.getMessage());
             System.out.println("Транзакция не выполнена");
-        }finally {
-            session.close();
-            sessionFactory.close();
         }
     }
+
 }
