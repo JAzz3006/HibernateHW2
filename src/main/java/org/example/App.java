@@ -21,8 +21,7 @@ public class App{
                 return;
             }
 
-            editTeacher(session);
-            getTeachers(session).forEach(System.out::println);
+            maxEarnings(session);
 
        } catch (Exception e) {
             System.out.println("Не удалось открыть сессию: " + e.getClass().getName() +
@@ -36,15 +35,24 @@ public class App{
 
     public static void maxEarnings(Session session){
         List<LinkedPurchaseList> purchases =
-                session.createQuery("SELECT * FROM LinkedPurchaseList", LinkedPurchaseList.class)
+                session.createQuery("FROM LinkedPurchaseList", LinkedPurchaseList.class)
                         .getResultList();
-        Map<Integer, List<LinkedPurchaseList>> groupedMap = purchases.stream()
+        //тут мэп сгруппированный по
+        Map<String, List<LinkedPurchaseList>> groupedLPLMap = purchases.stream()
                 .collect(Collectors.groupingBy(
-                        lpl -> lpl.getCourse().getId())//,
-                        //Collectors.flatMapping((lpl -> {
-                          //  Map.Entry<>
-                        //} )
-                );
+                        lpl ->lpl.getCourse().getName()
+                ));
+        Map <String, Integer> groupedPriceMap = groupedLPLMap.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().size() * e.getValue().stream()
+                                .mapToInt(list -> list.getCourse().getPrice())
+                                .sum()
+                ));
+
+        groupedPriceMap.forEach((key, value) -> System.out.println(
+                String.join(" - ", key, String.valueOf(value))
+        ));
 
 
     }
